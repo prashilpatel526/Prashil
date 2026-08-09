@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>PROX.AI Institutional Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+        body { font-family: 'Plus Jakarta+ Sans', sans-serif; background-color: #0b0e11; color: #eaecef; }
+        .binance-card { background: #181a20; border: 1px solid #2b313a; }
+        .binance-green { color: #0ecb81; }
+        .binance-red { color: #f6465d; }
+        .bg-binance-green { background-color: #0ecb81; }
+        .bg-binance-red { background-color: #f6465d; }
+    </style>
+</head>
+<body class="antialiased pb-20">
+
+    <!-- PASSWORD LOCK OVERLAY -->
+    <div id="lockScreen" class="fixed inset-0 z-50 bg-[#0b0e11] flex flex-col items-center justify-center p-6">
+        <div class="binance-card p-6 rounded-2xl w-full max-w-sm text-center shadow-2xl">
+            <div class="text-[#fcd535] text-4xl mb-3"><i class="fa-solid fa-shield-halved"></i></div>
+            <h2 class="text-xl font-bold mb-1">PROX.AI Security Lock</h2>
+            <p class="text-xs text-gray-400 mb-6">Enter Passcode to Access Terminal (PIN: 814099)</p>
+            <input type="password" id="passInput" maxlength="6" placeholder="Enter PIN" class="w-full bg-[#2b313a] text-center text-2xl tracking-widest text-white py-3 rounded-xl mb-4 focus:outline-none focus:border-[#fcd535] border border-transparent">
+            <button onclick="checkPassword()" class="w-full bg-[#fcd535] text-black font-bold py-3 rounded-xl hover:opacity-90 transition">Unlock Terminal</button>
+            <p id="errorMsg" class="text-xs text-[#f6465d] mt-3 hidden">Incorrect Passcode! Try 814099</p>
+        </div>
+    </div>
+
+    <!-- MAIN APP CONTAINER -->
+    <div id="appContainer" class="hidden max-w-md mx-auto p-3">
+        
+        <!-- HEADER TOP BAR -->
+        <div class="binance-card p-3 rounded-xl mb-3 flex justify-between items-center">
+            <div>
+                <div class="text-xs text-gray-400 flex items-center gap-1">
+                    <span id="globalSentimentBadge" class="px-1.5 py-0.5 rounded text-[10px] font-bold bg-binance-green text-black">BULLISH</span>
+                    BTCUSDT <span id="topPrice" class="text-white font-bold">$65,209.93</span>
+                </div>
+                <div class="text-[11px] text-gray-400 mt-0.5"><i class="fa-solid fa-bolt text-[#fcd535]"></i> Confluence: <span class="text-white font-semibold">88% (STRONG)</span></div>
+            </div>
+            <div class="flex items-center gap-2">
+                <button onclick="triggerAlarm()" class="bg-[#2b313a] p-2 rounded-lg text-gray-300 hover:text-white"><i class="fa-solid fa-bell"></i></button>
+                <button onclick="lockApp()" class="bg-[#2b313a] p-2 rounded-lg text-red-400 hover:text-red-300"><i class="fa-solid fa-lock"></i></button>
+            </div>
+        </div>
+
+        <!-- NAVIGATION MODULES -->
+        <div class="grid grid-cols-3 gap-2 mb-3">
+            <button onclick="switchTab('chart')" id="btn-chart" class="binance-card p-2.5 rounded-lg text-xs font-semibold text-center text-[#fcd535] border-[#fcd535]"><i class="fa-solid fa-chart-candlestick mb-1 block"></i> Chart Pro</button>
+            <button onclick="switchTab('scanner')" id="btn-scanner" class="binance-card p-2.5 rounded-lg text-xs font-semibold text-center text-gray-300"><i class="fa-solid fa-list-check mb-1 block"></i> SMC Scanner</button>
+            <button onclick="switchTab('vault')" id="btn-vault" class="binance-card p-2.5 rounded-lg text-xs font-semibold text-center text-gray-300"><i class="fa-solid fa-vault mb-1 block"></i> API & Vault</button>
+        </div>
+
+        <!-- TAB 1: CHART PRO & FULL SCREEN -->
+        <div id="tab-chart" class="space-y-3">
+            <div class="binance-card p-3 rounded-xl">
+                <div class="flex justify-between items-center mb-2">
+                    <div class="flex gap-1.5 overflow-x-auto">
+                        <button onclick="changeAsset('BTCUSDT')" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2b313a] text-white">BTC</button>
+                        <button onclick="changeAsset('ETHUSDT')" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2b313a] text-gray-400">ETH</button>
+                        <button onclick="changeAsset('SOLUSDT')" class="px-2.5 py-1 rounded text-xs font-bold bg-[#2b313a] text-gray-400">SOL</button>
+                    </div>
+                    <button onclick="toggleFullScreen()" class="text-xs bg-[#fcd535] text-black px-2.5 py-1 rounded font-bold"><i class="fa-solid fa-expand"></i> Fullscreen</button>
+                </div>
+                <!-- TradingView Embed -->
+                <div id="tradingview_container" class="w-full h-[320px] rounded-lg overflow-hidden"></div>
+            </div>
+
+            <!-- Quick Trade Simulation & Risk Calculator -->
+            <div class="binance-card p-3 rounded-xl">
+                <h3 class="text-xs font-bold text-gray-400 mb-2 uppercase tracking-wider"><i class="fa-solid fa-calculator text-[#fcd535]"></i> Dynamic TP / SL Risk Engine</h3>
+                <div class="grid grid-cols-2 gap-2 mb-3">
+                    <div class="bg-[#0b0e11] p-2 rounded-lg">
+                        <span class="text-[10px] text-gray-400 block">Take Profit (1:3)</span>
+                        <span id="calcTP" class="text-sm font-bold binance-green">$66,800.00</span>
+                    </div>
+                    <div class="bg-[#0b0e11] p-2 rounded-lg">
+                        <span class="text-[10px] text-gray-400 block">Stop Loss</span>
+                        <span id="calcSL" class="text-sm font-bold binance-red">$64,500.00</span>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-2">
+                    <button onclick="executeOrder('BUY')" class="bg-binance-green text-black font-bold py-2.5 rounded-lg text-xs uppercase">Market Long</button>
+                    <button onclick="executeOrder('SELL')" class="bg-binance-red text-white font-bold py-2.5 rounded-lg text-xs uppercase">Market Short</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 2: GLOBAL SMC SCANNER -->
+        <div id="tab-scanner" class="space-y-3 hidden">
+            <div class="binance-card p-3 rounded-xl">
+                <div class="flex justify-between items-center mb-3">
+                    <h3 class="text-xs font-bold text-gray-300 uppercase tracking-wider"><i class="fa-solid fa-fire text-[#fcd535]"></i> Global Multi-Coin SMC Scanner</h3>
+                    <span class="text-[10px] bg-green-900/40 text-green-400 px-2 py-0.5 rounded font-bold">Auto-Sync Live</span>
+                </div>
+                <div class="space-y-2">
+                    <div class="bg-[#0b0e11] p-2.5 rounded-lg flex justify-between items-center">
+                        <div>
+                            <span class="text-xs font-bold text-white block">SOLUSDT</span>
+                            <span class="text-[10px] text-green-400">Bullish OB + FVG</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-white block">$77.16</span>
+                            <span class="text-[10px] bg-[#0ecb81]/20 text-[#0ecb81] px-1.5 py-0.5 rounded">89/100 READY</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#0b0e11] p-2.5 rounded-lg flex justify-between items-center">
+                        <div>
+                            <span class="text-xs font-bold text-white block">XRPUSDT</span>
+                            <span class="text-[10px] text-green-400">Bullish OB + FVG</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-white block">$1.041</span>
+                            <span class="text-[10px] bg-[#0ecb81]/20 text-[#0ecb81] px-1.5 py-0.5 rounded">87/100 READY</span>
+                        </div>
+                    </div>
+                    <div class="bg-[#0b0e11] p-2.5 rounded-lg flex justify-between items-center">
+                        <div>
+                            <span class="text-xs font-bold text-white block">ETHUSDT</span>
+                            <span class="text-[10px] text-yellow-500">Bullish OB + FVG</span>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-xs font-bold text-white block">$1,921.51</span>
+                            <span class="text-[10px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded">61/100 WAITING</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 3: API VAULT & SECURE MASKING -->
+        <div id="tab-vault" class="space-y-3 hidden">
+            <div class="binance-card p-3 rounded-xl">
+                <h3 class="text-xs font-bold text-gray-300 mb-3 uppercase tracking-wider"><i class="fa-solid fa-key text-[#fcd535]"></i> Secure API Vault</h3>
+                <div class="space-y-3 text-xs">
+                    <div>
+                        <label class="text-gray-400 block mb-1">Binance API Key</label>
+                        <div class="flex gap-2">
+                            <input type="password" value="bnc_live_98457294857294857" readonly class="w-full bg-[#0b0e11] p-2 rounded text-gray-300">
+                            <button onclick="alert('API Key Copied securely!')" class="bg-[#2b313a] px-3 rounded text-white"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-gray-400 block mb-1">Webhook Secret Token</label>
+                        <div class="flex gap-2">
+                            <input type="password" value="whsec_prox_814099_secured_x9" readonly class="w-full bg-[#0b0e11] p-2 rounded text-gray-300">
+                            <button onclick="alert('Token Copied securely!')" class="bg-[#2b313a] px-3 rounded text-white"><i class="fa-solid fa-copy"></i></button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Security & Passcode Check (Pin: 814099)
+        function checkPassword() {
+            const val = document.getElementById('passInput').value;
+            if(val === '814099') {
+                document.getElementById('lockScreen').classList.add('hidden');
+                document.getElementById('appContainer').classList.remove('hidden');
+                initTradingView('BINANCE:BTCUSDT');
+            } else {
+                document.getElementById('errorMsg').classList.remove('hidden');
+            }
+        }
+
+        function lockApp() {
+            document.getElementById('passInput').value = '';
+            document.getElementById('errorMsg').classList.add('hidden');
+            document.getElementById('appContainer').classList.add('hidden');
+            document.getElementById('lockScreen').classList.remove('hidden');
+        }
+
+        // Tab Switcher
+        function switchTab(tab) {
+            ['chart', 'scanner', 'vault'].forEach(t => {
+                document.getElementById('tab-' + t).classList.add('hidden');
+                document.getElementById('btn-' + t).classList.remove('text-[#fcd535]', 'border', 'border-[#fcd535]');
+                document.getElementById('btn-' + t).classList.add('text-gray-300');
+            });
+            document.getElementById('tab-' + tab).classList.remove('hidden');
+            document.getElementById('btn-' + tab).classList.add('text-[#fcd535]', 'border', 'border-[#fcd535]');
+            document.getElementById('btn-' + tab).classList.remove('text-gray-300');
+        }
+
+        // TradingView Integration
+        function initTradingView(symbol) {
+            document.getElementById('tradingview_container').innerHTML = '';
+            new TradingView.widget({
+                "width": "100%",
+                "height": "320",
+                "symbol": symbol,
+                "interval": "15",
+                "timezone": "Etc/UTC",
+                "theme": "dark",
+                "style": "1",
+                "locale": "en",
+                "toolbar_bg": "#181a20",
+                "enable_publishing": false,
+                "hide_side_toolbar": false,
+                "container_id": "tradingview_container"
+            });
+        }
+
+        function changeAsset(symbol) {
+            initTradingView('BINANCE:' + symbol);
+        }
+
+        function toggleFullScreen() {
+            const container = document.getElementById('tradingview_container');
+            if (container.requestFullscreen) {
+                container.requestFullscreen();
+            } else if (container.webkitRequestFullscreen) {
+                container.webkitRequestFullscreen();
+            }
+        }
+
+        function executeOrder(type) {
+            alert(type + ' Order successfully simulated via PROX.AI Risk Engine!');
+        }
+
+        function triggerAlarm() {
+            alert('Haptic & Sound Alert Triggered: Market volatility detected in Global Scanner.');
+        }
+    </script>
+</body>
+</html>
